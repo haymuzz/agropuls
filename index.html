@@ -1,0 +1,577 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Сравнение средних региональных цен на топливо и расчёт стоимости заправки сельхозтехники.">
+<title>Цены на топливо</title>
+<style>
+:root {
+  --paper: #f5f5f5;
+  --surface: #fff;
+  --ink: #232323;
+  --muted: #555;
+  --line: #d7d7d7;
+  --green: #315a42;
+  --series: #39614a;
+  --accent: #a45b3c;
+}
+
+* { box-sizing: border-box; }
+html { scroll-padding-top: 18px; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 14px/1.45 Arial, "Liberation Sans", sans-serif;
+}
+button, select, input { font: inherit; }
+a { color: var(--green); text-underline-offset: 3px; }
+a:hover { text-decoration-thickness: 2px; }
+:focus-visible { outline: 2px solid var(--green); outline-offset: 3px; }
+.wrap { width: min(1180px, calc(100% - 72px)); margin-inline: auto; }
+main { padding-bottom: 28px; }
+.skip { position: absolute; top: -100px; left: 10px; z-index: 2; background: white; padding: 10px; }
+.skip:focus { top: 8px; }
+
+.top { background: var(--surface); border-bottom: 1px solid var(--line); }
+.top .wrap { min-height: 49px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.brand { color: var(--ink); font-size: 16px; font-weight: 700; text-decoration: none; }
+.nav { display: flex; gap: 18px; }
+.nav a { color: var(--muted); font-size: 13px; text-decoration: none; }
+.nav a:hover { color: var(--green); text-decoration: underline; }
+
+.page-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 23px 0 13px;
+  border-bottom: 1px solid var(--line);
+}
+h1, h2, p { margin: 0; }
+h1 { font-size: clamp(27px, 3.5vw, 36px); font-weight: 700; line-height: 1.15; }
+.archive-date { flex: none; font-size: 12px; color: var(--muted); white-space: nowrap; padding-bottom: 1px; }
+.archive-date time { font-weight: 650; color: var(--ink); }
+
+.filters {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr 1fr 1.2fr 1fr;
+  gap: 12px;
+  padding: 14px 0 18px;
+}
+.field { display: grid; gap: 5px; min-width: 0; }
+.field > span:first-child { font-size: 12px; font-weight: 650; color: var(--muted); }
+select, input[type=number] {
+  width: 100%;
+  min-height: 40px;
+  padding: 7px 9px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid #bdbdbd;
+  border-radius: 2px;
+}
+select { cursor: pointer; }
+.custom-period { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.custom-period[hidden] { display: none; }
+
+.dash { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(290px, 1fr); gap: 16px; align-items: start; }
+.panel { background: var(--surface); border: 1px solid var(--line); min-width: 0; }
+.chart-panel, .calc, .comparison, .sources { padding: 20px; }
+.heading { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+h2 { font-size: 19px; line-height: 1.22; font-weight: 700; }
+.sub { margin-top: 5px; color: var(--muted); font-size: 12px; }
+.unit { color: var(--muted); font-size: 12px; white-space: nowrap; }
+
+.summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 16px 0 0; border-block: 1px solid var(--line); }
+.metric { padding: 11px 9px 11px 0; min-width: 0; }
+.metric + .metric { border-left: 1px solid var(--line); padding-left: 14px; }
+.metric .label { color: var(--muted); font-size: 12px; }
+.metric strong { display: block; font-size: clamp(17px, 2.1vw, 25px); line-height: 1.15; margin: 4px 0 2px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.metric small { display: block; color: var(--muted); font-size: 11px; }
+.down { color: #345b42; }
+.up { color: #974a30; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 13px; font-size: 12px; color: var(--muted); }
+.legend span, .table-key { display: flex; align-items: center; gap: 7px; }
+.dot { width: 14px; height: 0; border-top: 2px solid var(--series); flex: none; }
+.dot.alt { border-color: var(--accent); border-top-style: dashed; }
+.chart-wrap { position: relative; margin-top: 5px; }
+.chart { display: block; width: 100%; height: 244px; overflow: visible; }
+.chart text { font: 11px Arial, "Liberation Sans", sans-serif; fill: var(--muted); }
+.chart .hit:focus-visible { outline: none; }
+.chart .hit:focus-visible rect { stroke: var(--green); stroke-dasharray: 4 3; }
+.tip { position: absolute; z-index: 1; top: 8px; pointer-events: none; border: 1px solid #9ca79b; background: var(--surface); color: var(--ink); padding: 8px 10px; font-size: 11px; min-width: 135px; }
+.tip strong, .tip span { display: block; }
+.tip strong { margin-bottom: 4px; }
+.chart-actions { display: flex; align-items: start; justify-content: space-between; gap: 12px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 12px; }
+.chart-actions details { flex: 1; min-width: 0; }
+summary { cursor: pointer; color: var(--green); font-weight: 630; }
+.chart-actions details[open] .scroll { margin-top: 9px; }
+
+.calc .field { margin-top: 14px; }
+.calc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.unit-input { position: relative; }
+.unit-input input { padding-right: 37px; appearance: textfield; }
+.unit-input input::-webkit-inner-spin-button { appearance: none; }
+.unit-input b { position: absolute; right: 9px; top: 10px; font-size: 12px; font-weight: 500; color: var(--muted); pointer-events: none; }
+.result { margin-top: 17px; padding: 12px 0 0; border-top: 1px solid var(--line); }
+.result-label { color: var(--muted); font-size: 12px; }
+.result output { display: block; margin: 3px 0; font-size: 30px; line-height: 1.15; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.calc-note { margin-top: 12px; font-size: 12px; color: var(--muted); }
+
+.comparison, .sources { margin-top: 20px; }
+.scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; text-align: left; }
+th, td { padding: 9px 10px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+thead th { font-size: 11px; color: var(--muted); background: #f1f1f1; font-weight: 700; }
+tbody th { font-weight: 620; }
+tbody tr:last-child td, tbody tr:last-child th { border-bottom: 0; }
+.numeric { text-align: right; white-space: nowrap; }
+.comparison table { margin-top: 12px; }
+.sources p { margin-top: 9px; max-width: 830px; color: var(--muted); }
+.sources h3 { margin: 13px 0 0; font-size: 14px; }
+.source-list { margin-top: 8px; font-size: 13px; }
+.source-list details { border-top: 1px solid var(--line); padding: 7px 0; scroll-margin-top: 15px; }
+.source-list details:last-child { border-bottom: 1px solid var(--line); }
+.source-list .scroll { margin-top: 7px; }
+.source-list table { min-width: 530px; }
+.source-end { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 10px; font-size: 12px; }
+
+@media (max-width: 900px) {
+  .wrap { width: calc(100% - 44px); }
+  .filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dash { gap: 14px; }
+}
+@media (max-width: 740px) {
+  .wrap { width: calc(100% - 28px); }
+  .nav { gap: 14px; }
+  .page-head { display: block; padding: 20px 0 13px; }
+  .archive-date { display: block; margin-top: 9px; }
+  .filters { gap: 9px; padding: 12px 0; }
+  .dash { grid-template-columns: 1fr; }
+  .chart-panel, .calc, .comparison, .sources { padding: 14px; }
+  .metric + .metric { padding-left: 8px; }
+  .metric .label, .metric small { line-height: 1.25; }
+  .metric small { font-size: 10px; }
+  .chart { height: 220px; }
+  .chart-actions { font-size: 11px; }
+  .chart-actions table { min-width: 265px; }
+  .comparison table { min-width: 465px; }
+}
+@media (max-width: 370px) {
+  .wrap { width: calc(100% - 22px); }
+  .metric strong { font-size: 16px; }
+  .chart-actions { column-gap: 6px; }
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#monitor">К мониторингу цен</a>
+<header class="top"><div class="wrap">
+<a class="brand" href="#top">АгроПульс</a>
+<nav class="nav" aria-label="Разделы"><a href="#calculator">Заправка</a><a href="#sources">Источники</a></nav>
+</div></header>
+<main class="wrap" id="top">
+<header class="page-head">
+<h1>Цены на топливо</h1>
+<div class="archive-date" id="archiveDate"></div>
+</header>
+<section id="monitor" aria-label="Мониторинг цен">
+<div class="filters">
+<label class="field"><span>Источник цен</span><select id="source"></select></label>
+<label class="field"><span>Основной регион</span><select id="region"></select></label>
+<label class="field"><span>Вид топлива</span><select id="fuel"></select></label>
+<label class="field"><span>Регион для сравнения</span><select id="compare"></select></label>
+<label class="field"><span>Период</span><select id="period"></select></label>
+<div id="customPeriod" class="custom-period" hidden><label class="field"><span>С недели</span><select id="startWeek"></select></label><label class="field"><span>По неделю</span><select id="endWeek"></select></label></div>
+</div>
+<div class="dash">
+<article class="panel chart-panel">
+<div class="heading"><div><h2>Динамика цен</h2><p class="sub" id="chartSub"></p></div><span class="unit">₽ / л</span></div>
+<div class="summary" id="metrics" aria-live="polite">
+<article class="metric"><div class="label">Цена на конец периода</div><strong id="endPrice"></strong><small id="endInfo"></small></article>
+<article class="metric"><div class="label">Изменение за период</div><strong id="change"></strong><small id="changeInfo"></small></article>
+<article class="metric"><div class="label">Разница между регионами</div><strong id="gap"></strong><small id="gapInfo"></small></article>
+</div>
+<div class="legend" id="legend"></div>
+<div class="chart-wrap"><svg class="chart" id="chart" role="group" aria-label="График цен по датам"></svg><div class="tip" id="tip" hidden aria-hidden="true"></div></div>
+<div class="chart-actions"><details><summary>Значения по датам</summary><div class="scroll" id="weekTable"></div></details><a id="latest" href="#sources">Таблица на конец периода</a></div>
+</article>
+<aside class="panel calc" id="calculator">
+<h2>Калькулятор заправки</h2>
+<p class="sub">По цене основного региона на конец периода</p>
+<label class="field"><span>Тип техники</span><select id="machine"><option value="180">Трактор · пример 180 л</option><option value="500">Комбайн · пример 500 л</option><option value="60">Мини-трактор · пример 60 л</option><option value="custom">Свой объём</option></select></label>
+<div class="calc-grid">
+<label class="field"><span>Объём на единицу</span><span class="unit-input"><input type="number" id="volume" min="0.01" max="1000000" step="any" inputmode="decimal" value="180" required><b aria-hidden="true">л</b></span></label>
+<label class="field"><span>Количество машин</span><span class="unit-input"><input type="number" id="quantity" min="1" max="10000" step="1" value="1" required><b aria-hidden="true">шт.</b></span></label>
+</div>
+<div class="result" aria-live="polite"><div class="result-label">Расчётная стоимость</div><output id="total" for="volume quantity region fuel period"></output><p class="sub" id="formula"></p></div>
+<p class="calc-note">Введите объём, который планируете залить в одну машину.</p>
+</aside>
+</div>
+<article class="panel comparison">
+<h2>Сравнение на конец периода</h2><p class="sub" id="comparisonSub"></p><div class="scroll" id="regionTable"></div>
+</article>
+</section>
+<section class="panel sources" id="sources">
+<h2>Источники и расчёты</h2>
+<p>Росстат публикует недельные цены по восьми регионам этой выборки и среднее по России. MultiGO даёт срез средних цен тех же восьми регионов на 17 ноября 2026 года. В таблице MultiGO АИ-98 указан отдельной маркой.</p>
+<p>Изменение цены считается от первой выбранной даты. Стоимость заправки равна объёму на одну машину, умноженному на количество машин и цену за литр на конец периода.</p>
+<h3>Таблицы, использованные в расчётах</h3>
+<p>Сохранённые цены в рублях за литр. Прочерк означает, что источник не опубликовал цену.</p>
+<div class="source-list" id="sourceList"></div>
+<div class="source-end"><a id="export" download="agropuls-ceny.csv">Скачать CSV</a></div>
+<h3>Публикации источников</h3>
+<div class="source-end">
+<a href="https://multigo.ru/benzin/statistika" target="_blank" rel="noopener">MultiGO — цены по регионам</a>
+<a href="https://rosstat.gov.ru/search?q=%D0%B1%D0%B5%D0%BD%D0%B7%D0%B8%D0%BD" target="_blank" rel="noopener">Росстат — поиск публикаций о бензине</a>
+</div>
+</section>
+</main>
+<script>
+const dataset = {"regions":["Краснодарский край","Ростовская область","Волгоградская область","Астраханская область","Республика Адыгея","Республика Калмыкия","Воронежская область","Белгородская область","Россия"],"weeks":[{"date":"2026-08-31","prices":[[80.16,75.94,81.64,110.12],[83.39,79.48,86.31,101.85],[78.24,67.37,74.91,96.9],[79.05,68.52,74.33,98.38],[77.71,70.41,76.78,99.4],[98.85,94.18,111.55,104.78],[84.56,77.93,84.76,111.71],[78.13,68.69,73.93,95.69],[88.4,73.78,80.08,102.32]]},{"date":"2026-09-07","prices":[[80.01,76.04,82.5,110.09],[83.77,79.49,86.49,101.85],[78.39,67.61,75.19,96.9],[79.14,68.52,74.65,98.38],[77.71,70.41,76.78,99.4],[99.18,98.14,115.38,104.78],[84.56,77.93,84.76,111.71],[78.13,68.69,74.01,95.69],[88.44,74.25,80.6,102.46]]},{"date":"2026-09-14","prices":[[80.18,77.48,84.47,108.87],[84.12,80.22,87.12,101.85],[78.41,68.75,75.89,96.9],[79.21,68.52,74.65,98.38],[77.71,70.41,76.78,99.4],[99.01,97.51,115.49,104.78],[83.87,77.93,84.76,111.71],[78.33,68.88,74.22,95.69],[88.05,74.6,80.78,102.89]]},{"date":"2026-09-21","prices":[[79.98,77.39,84.16,114.09],[82.12,79.88,87.87,101.85],[78.41,68.75,75.89,96.9],[79.64,72.72,79.24,98.38],[77.71,70.41,76.78,99.4],[93.75,97.31,115.27,104.78],[82.55,77.95,84.76,111.71],[78.38,68.88,75.17,95.69],[87.37,74.59,80.79,103.27]]},{"date":"2026-09-28","prices":[[79.72,77.31,83.96,114.56],[79.87,79.46,87.25,101.85],[78.41,68.77,76.03,96.9],[79.94,76.96,83.5,98.38],[77.71,70.45,76.85,99.4],[93.76,96.88,115.15,104.78],[82.56,77.98,84.76,111.71],[78.53,68.96,75.39,95.69],[86.77,74.51,80.8,103.63]]},{"date":"2026-10-05","prices":[[78.91,76.53,83.32,114.28],[79.49,78.31,86.21,107.61],[78.41,68.77,76.03,96.9],[79.59,76.54,83.32,98.38],[77.71,70.45,76.85,99.4],[93.5,95.66,115.15,104.78],[82.27,78.01,84.79,111.88],[78.62,69.01,75.39,95.69],[86.72,74.72,81.03,104.32]]},{"date":"2026-10-12","prices":[[79.06,76.58,83.76,114.28],[78.47,77.13,85.42,111.49],[78.65,68.93,76.34,97.17],[79.47,80.31,86.97,98.82],[77.9,70.75,77.07,99.4],[87.33,93.31,110.4,105.26],[83.22,78.11,85.28,111.88],[78.93,69.22,74.66,95.69],[86.67,74.71,80.92,104.5]]},{"date":"2026-10-19","prices":[[79.16,75.13,82.08,114.03],[78.2,76.07,83.45,111.49],[78.81,69.11,76.41,97.32],[79.6,79.37,86.06,98.82],[78.15,69.85,76.25,99.4],[87.32,93.08,110.12,110.17],[83.27,78.03,85.25,111.88],[79,69.06,74.52,95.69],[86.58,74.02,80.3,104.67]]},{"date":"2026-10-26","prices":[[79.33,75.3,81.72,113.77],[77.45,74.47,82.66,111.49],[79.15,68.29,75.54,97.53],[79.73,78.66,85.46,99.31],[78.44,70.2,76.65,99.99],[87.36,91.92,108.64,110.17],[83.5,78.02,85.24,112.72],[78.85,66.78,72.42,95.69],[86.52,72.55,78.9,104.66]]}],"multigo":[{"date":"2026-11-17","prices":[[79.56,71.15,77.72,110.68],[79.83,76.08,84.12,111.92],[80.7,71.14,77.58,99.99],[79.86,68.27,73.44,null],[77.58,71.17,78.16,null],[90.06,77.43,83.39,null],[80.95,72.3,79.79,106.12],[79.75,69.97,75.34,null]]}]};
+const { regions } = dataset;
+const commonFuels = ['Дизельное топливо', 'Бензин АИ-92', 'Бензин АИ-95'];
+const sources = {
+  rosstat: { label: 'Росстат', dates: dataset.weeks, fuels: [...commonFuels, 'Бензин АИ-98 и выше'], national: true },
+  multigo: { label: 'MultiGO', dates: dataset.multigo, fuels: [...commonFuels, 'Бензин АИ-98'], national: false }
+};
+const get = id => document.getElementById(id);
+const source = get('source');
+const region = get('region');
+const fuel = get('fuel');
+const compare = get('compare');
+const period = get('period');
+const startWeek = get('startWeek');
+const endWeek = get('endWeek');
+const volume = get('volume');
+const quantity = get('quantity');
+const machine = get('machine');
+const chart = get('chart');
+const tip = get('tip');
+
+const rub = new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const number = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 });
+const shortDate = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+const fullDate = new Intl.DateTimeFormat('ru-RU', { dateStyle: 'short', timeZone: 'UTC' });
+const dateLabel = (week, fmt = fullDate) => fmt.format(new Date(week.date));
+const priceText = price => price === null ? '—' : rub.format(price);
+const cash = price => price === null ? '—' : priceText(price) + ' ₽';
+const signed = value => (value > 0.00001 ? '+' : value < -0.00001 ? '−' : '') + rub.format(Math.abs(value));
+const pct = (start, end) => (end / start - 1) * 100;
+const direction = value => value > 0.00001 ? 'up' : value < -0.00001 ? 'down' : '';
+
+function setOptions(select, options, value) {
+  select.replaceChildren(...options.map(([id, label]) => new Option(label, id)));
+  select.value = value;
+}
+
+const regionOptions = regions.map((name, id) => [id, name === 'Россия' ? 'Россия в среднем' : name]);
+setOptions(region, regionOptions.slice(0, -1), 0);
+setOptions(source, Object.entries(sources).map(([id, data]) => [id, data.label]), 'rosstat');
+
+function setCompare(preferred) {
+  const allowed = sources[source.value].national ? regionOptions : regionOptions.slice(0, -1);
+  const options = [['none', 'Без сравнения'], ...allowed.filter(([id]) => id !== +region.value)];
+  setOptions(compare, options, options.some(([id]) => String(id) === String(preferred)) ? preferred : 'none');
+}
+
+function setSource(preferredComparison) {
+  const { dates, fuels, label } = sources[source.value];
+  setOptions(fuel, fuels.map((name, id) => [id, name]), fuel.value || 0);
+  const dateOptions = dates.map((date, index) => [index, dateLabel(date)]);
+  setOptions(startWeek, dateOptions, 0);
+  setOptions(endWeek, dateOptions, dates.length - 1);
+  const choices = dates.length > 1
+    ? [[dates.length, 'Весь период'], [6, 'Последние 6 недель'], [4, 'Последние 4 недели'], ['custom', 'Свой период']]
+    : [[1, dateLabel(dates[0])]];
+  setOptions(period, choices, dates.length);
+  period.disabled = dates.length === 1;
+  get('customPeriod').hidden = true;
+  get('archiveDate').textContent = label + ' · данные по ' + dateLabel(dates.at(-1));
+  setCompare(preferredComparison);
+  render();
+}
+
+function selection() {
+  const { dates, fuels } = sources[source.value];
+  const custom = period.value === 'custom';
+  const firstIndex = custom ? +startWeek.value : dates.length - +period.value;
+  const lastIndex = custom ? +endWeek.value : dates.length - 1;
+  const selected = dates.slice(firstIndex, lastIndex + 1);
+  const series = [+region.value];
+  if (compare.value !== 'none') series.push(+compare.value);
+  return { selected, series, kind: +fuel.value, fuels };
+}
+
+function renderCalculation() {
+  const { selected, series, kind } = selection();
+  const price = selected.at(-1).prices[series[0]][kind];
+  const liters = volume.valueAsNumber;
+  const machines = quantity.valueAsNumber;
+  const valid = volume.validity.valid && quantity.validity.valid;
+
+  if (price === null) {
+    get('total').textContent = '—';
+    get('formula').textContent = 'Для выбранного региона и топлива цены нет.';
+    return;
+  }
+  get('total').textContent = valid ? cash(liters * machines * price) : '—';
+  get('formula').textContent = valid
+    ? number.format(liters) + ' л × ' + number.format(machines) + ' шт. × ' + cash(price) + '/л'
+    : 'Допустимый объём — от 0,01 до 1 000 000 л. Количество — от 1 до 10 000 целых единиц.';
+}
+
+function makeTable(container, headings, rows) {
+  const table = document.createElement('table');
+  const header = table.createTHead().insertRow();
+  headings.forEach((label, column) => {
+    const cell = document.createElement('th');
+    cell.scope = 'col';
+    cell.textContent = label;
+    if (column) cell.className = 'numeric';
+    header.append(cell);
+  });
+  const body = table.createTBody();
+  rows.forEach(({ values, tone, seriesIndex }) => {
+    const row = body.insertRow();
+    values.forEach((value, column) => {
+      const cell = document.createElement(column ? 'td' : 'th');
+      if (!column) cell.scope = 'row';
+      if (column) cell.className = 'numeric';
+      if (column === values.length - 1 && tone) cell.classList.add(tone);
+      cell.textContent = value;
+      if (column === 0 && seriesIndex !== undefined) {
+        const label = document.createElement('span');
+        label.className = 'table-key';
+        label.append(makeDot(seriesIndex), value);
+        cell.replaceChildren(label);
+      }
+      row.append(cell);
+    });
+  });
+  container.replaceChildren(table);
+}
+
+function makeDot(index) {
+  const dot = document.createElement('i');
+  dot.className = index ? 'dot alt' : 'dot';
+  dot.setAttribute('aria-hidden', 'true');
+  return dot;
+}
+
+function render() {
+  const { selected, series, kind, fuels } = selection();
+  const first = selected[0];
+  const last = selected.at(-1);
+  const before = first.prices[series[0]][kind];
+  const price = last.prices[series[0]][kind];
+  const comparisonPrice = series.length > 1 ? last.prices[series[1]][kind] : null;
+  const diff = before !== null && price !== null && selected.length > 1 ? price - before : null;
+  const gap = price !== null && comparisonPrice !== null ? price - comparisonPrice : null;
+
+  get('endPrice').textContent = price === null ? '—' : cash(price) + '/л';
+  get('endInfo').textContent = regions[series[0]] + ' · ' + dateLabel(last);
+  get('change').textContent = diff === null ? '—' : signed(diff) + ' ₽/л';
+  get('change').className = direction(diff);
+  get('changeInfo').textContent = diff !== null ? signed(pct(before, price)) + '% к первой дате'
+    : selected.length === 1 ? 'Одна дата наблюдения' : 'Данных для расчёта нет';
+  get('gap').textContent = gap === null ? '—' : signed(gap) + ' ₽/л';
+  get('gap').className = gap === null ? '' : direction(gap);
+  get('gapInfo').textContent = series.length === 1 ? 'Укажите регион для сравнения'
+    : gap === null ? 'Данных для сравнения нет' : 'К уровню «' + regions[series[1]] + '»';
+
+  const range = selected.length > 1 ? dateLabel(first, shortDate) + ' — ' + dateLabel(last, shortDate) : dateLabel(last, shortDate);
+  get('chartSub').textContent = fuels[kind] + ' · ' + range + ' ' + last.date.slice(0, 4);
+  get('comparisonSub').textContent = fuels[kind] + ' · ' + dateLabel(last);
+  get('latest').href = '#week-' + last.date;
+  get('legend').replaceChildren(...series.map((id, index) => {
+    const span = document.createElement('span');
+    span.append(makeDot(index), regions[id]);
+    return span;
+  }));
+
+  makeTable(get('weekTable'), ['Дата', ...series.map(id => regions[id])], selected.map(week => ({
+    values: [dateLabel(week), ...series.map(id => cash(week.prices[id][kind]))]
+  })));
+  makeTable(get('regionTable'), ['Регион', 'Цена за литр', 'Первая дата', 'Изменение'], series.map((id, index) => {
+    const start = first.prices[id][kind];
+    const end = last.prices[id][kind];
+    const hasChange = selected.length > 1 && start !== null && end !== null;
+    return {
+      seriesIndex: index,
+      values: [regions[id], cash(end), cash(start), hasChange ? signed(pct(start, end)) + '%' : '—'],
+      tone: hasChange ? direction(end - start) : ''
+    };
+  }));
+  renderChart(selected, series, kind);
+  renderCalculation();
+}
+
+function svgNode(tag, attributes = {}, value = '') {
+  const node = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  Object.entries(attributes).forEach(([key, data]) => node.setAttribute(key, data));
+  if (value) node.textContent = value;
+  return node;
+}
+
+function renderChart(selected, series, kind) {
+  const width = Math.max(260, chart.clientWidth);
+  const height = chart.clientHeight || 235;
+  const left = 41;
+  const right = width - 13;
+  const top = 13;
+  const bottom = height - 26;
+  const values = selected.flatMap(week => series.map(id => week.prices[id][kind])).filter(Number.isFinite);
+  chart.setAttribute('viewBox', [0, 0, width, height].join(' '));
+  chart.replaceChildren();
+  tip.hidden = true;
+  if (!values.length) {
+    chart.append(svgNode('text', { x: width / 2, y: height / 2, 'text-anchor': 'middle' }, 'Нет цен на выбранное топливо'));
+    return;
+  }
+  const low = Math.min(...values);
+  const high = Math.max(...values);
+  const target = Math.max((high - low) / 4, 0.2);
+  const base = 10 ** Math.floor(Math.log10(target));
+  const step = base * ([1, 2, 2.5, 5, 10].find(n => n >= target / base) ?? 10);
+  const min = Math.floor((low - step * 0.24) / step) * step;
+  const max = Math.ceil((high + step * 0.24) / step) * step;
+  const x = index => selected.length === 1 ? (left + right) / 2 : left + index * (right - left) / (selected.length - 1);
+  const y = value => bottom - (value - min) / (max - min) * (bottom - top);
+
+  for (let tick = min; tick <= max + step / 10; tick += step) {
+    const gy = y(tick);
+    chart.append(svgNode('line', { x1: left, x2: right, y1: gy, y2: gy, stroke: '#e3e4db' }));
+    chart.append(svgNode('text', { x: left - 7, y: gy + 4, 'text-anchor': 'end' }, number.format(tick)));
+  }
+
+  const colors = ['#39614a', '#a45b3c'];
+  series.forEach((id, index) => {
+    const linestyle = { fill: 'none', stroke: colors[index], 'stroke-width': 2.2,
+      'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-dasharray': index ? '5 4' : '' };
+    const path = selected.map((week, i) => {
+      const price = week.prices[id][kind];
+      if (price === null) return '';
+      const command = i === 0 || selected[i - 1].prices[id][kind] === null ? 'M' : 'L';
+      return command + x(i) + ',' + y(price);
+    }).join(' ');
+    chart.append(svgNode('path', { ...linestyle, d: path }));
+    selected.forEach((week, i) => {
+      const price = week.prices[id][kind];
+      if (price === null) return;
+      chart.append(svgNode('circle', { cx: x(i), cy: y(price), r: 3.4,
+        fill: colors[index], stroke: 'white', 'stroke-width': 1.3 }));
+    });
+  });
+
+  const last = selected.length - 1;
+  const labelStep = Math.max(1, Math.ceil(selected.length / Math.floor((right - left) / 61)));
+  const hitWidth = selected.length === 1 ? right - left : (right - left) / last;
+  selected.forEach((week, i) => {
+    if (i === 0 || i === last || (i % labelStep === 0 && last - i >= labelStep)) {
+      const labelX = i === last && last > 0 ? width - 2 : x(i);
+      chart.append(svgNode('text', { x: labelX, y: height - 7, 'text-anchor': i === last && last > 0 ? 'end' : 'middle' },
+        dateLabel(week, shortDate).replace('.', '')));
+    }
+    const label = [dateLabel(week), ...series.map(id => {
+      const price = week.prices[id][kind];
+      return regions[id] + ' · ' + (price === null ? 'нет цены' : cash(price) + ' за литр');
+    })];
+    const group = svgNode('g', { class: 'hit', tabindex: 0, role: 'img', 'aria-label': label.join(', ') });
+    group.append(svgNode('rect', { x: Math.max(left - 4, x(i) - hitWidth / 2), y: top,
+      width: (i === 0 || i === last) && last ? hitWidth / 2 + 4 : hitWidth, height: bottom - top, fill: 'transparent' }));
+    const show = () => {
+      const title = document.createElement('strong');
+      title.textContent = label[0];
+      tip.replaceChildren(title, ...label.slice(1).map(value => {
+        const line = document.createElement('span');
+        line.textContent = value;
+        return line;
+      }));
+      tip.hidden = false;
+      tip.style.left = Math.max(2, Math.min(width - tip.offsetWidth - 2, x(i) + 9)) + 'px';
+    };
+    group.addEventListener('pointerenter', show);
+    group.addEventListener('click', show);
+    group.addEventListener('focus', show);
+    group.addEventListener('blur', () => { tip.hidden = true; });
+    group.addEventListener('keydown', event => { if (event.key === 'Escape') tip.hidden = true; });
+    chart.append(group);
+  });
+}
+
+chart.addEventListener('pointerleave', () => { tip.hidden = true; });
+source.addEventListener('change', () => setSource(compare.value));
+region.addEventListener('change', () => {
+  setCompare(compare.value === region.value ? 'none' : compare.value);
+  render();
+});
+period.addEventListener('change', () => {
+  get('customPeriod').hidden = period.value !== 'custom';
+  render();
+});
+startWeek.addEventListener('change', () => {
+  if (+startWeek.value > +endWeek.value) endWeek.value = startWeek.value;
+  render();
+});
+endWeek.addEventListener('change', () => {
+  if (+endWeek.value < +startWeek.value) startWeek.value = endWeek.value;
+  render();
+});
+[fuel, compare].forEach(select => select.addEventListener('change', render));
+machine.addEventListener('change', () => {
+  if (machine.value === 'custom') {
+    volume.focus();
+    volume.select();
+  } else {
+    volume.value = machine.value;
+  }
+  renderCalculation();
+});
+volume.addEventListener('input', () => {
+  machine.value = 'custom';
+  renderCalculation();
+});
+quantity.addEventListener('input', renderCalculation);
+const observations = Object.values(sources).flatMap(data => data.dates.map(week => ({ ...data, week })));
+observations.slice().sort((a, b) => b.week.date.localeCompare(a.week.date)).forEach(({ week, label, fuels }) => {
+  const entry = document.createElement('details');
+  entry.id = 'week-' + week.date;
+  const title = document.createElement('summary');
+  title.textContent = dateLabel(week) + ' · ' + label;
+  const table = document.createElement('div');
+  table.className = 'scroll';
+  makeTable(table, ['Регион', ...fuels], week.prices.map((prices, id) => ({
+    values: [regions[id], ...prices.map(priceText)]
+  })));
+  entry.append(title, table);
+  get('sourceList').append(entry);
+});
+
+function openWeek(hash) {
+  if (!hash.startsWith('#week-')) return;
+  const entry = get(hash.slice(1));
+  if (entry) entry.open = true;
+}
+
+get('latest').addEventListener('click', event => openWeek(event.currentTarget.hash));
+window.addEventListener('hashchange', () => openWeek(window.location.hash));
+openWeek(window.location.hash);
+
+const csv = [['Дата', 'Регион', 'Вид топлива', 'Рублей за литр', 'Источник'],
+  ...observations.flatMap(({ week, label, fuels }) => week.prices.flatMap((prices, id) =>
+    fuels.flatMap((name, kind) => prices[kind] === null ? []
+      : [[week.date, regions[id], name, priceText(prices[kind]), label]])))];
+get('export').href = URL.createObjectURL(new Blob(['\uFEFF', csv.map(row => row.join(';')).join('\r\n')],
+  { type: 'text/csv;charset=utf-8' }));
+setSource(1);
+new ResizeObserver(() => {
+  const { selected, series, kind } = selection();
+  renderChart(selected, series, kind);
+}).observe(chart);
+
+</script>
+</body>
+</html>

@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Сравнение средних региональных цен на топливо и расчёт стоимости заправки сельхозтехники.">
+<title>Цены на топливо</title>
+<style>
+:root {
+  --paper: #f5f5f5;
+  --surface: #fff;
+  --ink: #232323;
+  --muted: #555;
+  --line: #d7d7d7;
+  --green: #315a42;
+  --series: #39614a;
+  --accent: #a45b3c;
+}
+
+* { box-sizing: border-box; }
+html { scroll-padding-top: 18px; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 14px/1.45 Arial, "Liberation Sans", sans-serif;
+}
+button, select, input { font: inherit; }
+a { color: var(--green); text-underline-offset: 3px; }
+a:hover { text-decoration-thickness: 2px; }
+:focus-visible { outline: 2px solid var(--green); outline-offset: 3px; }
+.wrap { width: min(1180px, calc(100% - 72px)); margin-inline: auto; }
+main { padding-bottom: 28px; }
+.skip { position: absolute; top: -100px; left: 10px; z-index: 2; background: white; padding: 10px; }
+.skip:focus { top: 8px; }
+
+.top { background: var(--surface); border-bottom: 1px solid var(--line); }
+.top .wrap { min-height: 49px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.brand { color: var(--ink); font-size: 16px; font-weight: 700; text-decoration: none; }
+.nav { display: flex; gap: 18px; }
+.nav a { color: var(--muted); font-size: 13px; text-decoration: none; }
+.nav a:hover { color: var(--green); text-decoration: underline; }
+
+.page-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 23px 0 13px;
+  border-bottom: 1px solid var(--line);
+}
+h1, h2, p { margin: 0; }
+h1 { font-size: clamp(27px, 3.5vw, 36px); font-weight: 700; line-height: 1.15; }
+.archive-date { flex: none; font-size: 12px; color: var(--muted); white-space: nowrap; padding-bottom: 1px; }
+.archive-date time { font-weight: 650; color: var(--ink); }
+
+.filters {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr 1fr 1.2fr 1fr;
+  gap: 12px;
+  padding: 14px 0 18px;
+}
+.field { display: grid; gap: 5px; min-width: 0; }
+.field > span:first-child { font-size: 12px; font-weight: 650; color: var(--muted); }
+select, input[type=number] {
+  width: 100%;
+  min-height: 40px;
+  padding: 7px 9px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid #bdbdbd;
+  border-radius: 2px;
+}
+select { cursor: pointer; }
+.custom-period { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.custom-period[hidden] { display: none; }
+
+.dash { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(290px, 1fr); gap: 16px; align-items: start; }
+.panel { background: var(--surface); border: 1px solid var(--line); min-width: 0; }
+.chart-panel, .calc, .comparison, .sources { padding: 20px; }
+.heading { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+h2 { font-size: 19px; line-height: 1.22; font-weight: 700; }
+.sub { margin-top: 5px; color: var(--muted); font-size: 12px; }
+.unit { color: var(--muted); font-size: 12px; white-space: nowrap; }
+
+.summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 16px 0 0; border-block: 1px solid var(--line); }
+.metric { padding: 11px 9px 11px 0; min-width: 0; }
+.metric + .metric { border-left: 1px solid var(--line); padding-left: 14px; }
+.metric .label { color: var(--muted); font-size: 12px; }
+.metric strong { display: block; font-size: clamp(17px, 2.1vw, 25px); line-height: 1.15; margin: 4px 0 2px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.metric small { display: block; color: var(--muted); font-size: 11px; }
+.down { color: #345b42; }
+.up { color: #974a30; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 13px; font-size: 12px; color: var(--muted); }
+.legend span, .table-key { display: flex; align-items: center; gap: 7px; }
+.dot { width: 14px; height: 0; border-top: 2px solid var(--series); flex: none; }
+.dot.alt { border-color: var(--accent); border-top-style: dashed; }
+.chart-wrap { position: relative; margin-top: 5px; }
+.chart { display: block; width: 100%; height: 244px; overflow: visible; }
+.chart text { font: 11px Arial, "Liberation Sans", sans-serif; fill: var(--muted); }
+.chart .hit:focus-visible { outline: none; }
+.chart .hit:focus-visible rect { stroke: var(--green); stroke-dasharray: 4 3; }
+.tip { position: absolute; z-index: 1; top: 8px; pointer-events: none; border: 1px solid #9ca79b; background: var(--surface); color: var(--ink); padding: 8px 10px; font-size: 11px; min-width: 135px; }
+.tip strong, .tip span { display: block; }
+.tip strong { margin-bottom: 4px; }
+.chart-actions { display: flex; align-items: start; justify-content: space-between; gap: 12px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 12px; }
+.chart-actions details { flex: 1; min-width: 0; }
+summary { cursor: pointer; color: var(--green); font-weight: 630; }
+.chart-actions details[open] .scroll { margin-top: 9px; }
+
+.calc .field { margin-top: 14px; }
+.calc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.unit-input { position: relative; }
+.unit-input input { padding-right: 37px; appearance: textfield; }
+.unit-input input::-webkit-inner-spin-button { appearance: none; }
+.unit-input b { position: absolute; right: 9px; top: 10px; font-size: 12px; font-weight: 500; color: var(--muted); pointer-events: none; }
+.result { margin-top: 17px; padding: 12px 0 0; border-top: 1px solid var(--line); }
+.result-label { color: var(--muted); font-size: 12px; }
+.result output { display: block; margin: 3px 0; font-size: 30px; line-height: 1.15; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.calc-note { margin-top: 12px; font-size: 12px; color: var(--muted); }
+
+.comparison, .sources { margin-top: 20px; }
+.scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; text-align: left; }
+th, td { padding: 9px 10px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+thead th { font-size: 11px; color: var(--muted); background: #f1f1f1; font-weight: 700; }
+tbody th { font-weight: 620; }
+tbody tr:last-child td, tbody tr:last-child th { border-bottom: 0; }
+.numeric { text-align: right; white-space: nowrap; }
+.comparison table { margin-top: 12px; }
+.sources p { margin-top: 9px; max-width: 830px; color: var(--muted); }
+.sources h3 { margin: 13px 0 0; font-size: 14px; }
+.source-list { margin-top: 8px; font-size: 13px; }
+.source-list details { border-top: 1px solid var(--line); padding: 7px 0; scroll-margin-top: 15px; }
+.source-list details:last-child { border-bottom: 1px solid var(--line); }
+.source-list .scroll { margin-top: 7px; }
+.source-list table { min-width: 530px; }
+.source-end { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 10px; font-size: 12px; }
+
+@media (max-width: 900px) {
+  .wrap { width: calc(100% - 44px); }
+  .filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dash { gap: 14px; }
+}
+@media (max-width: 740px) {
+  .wrap { width: calc(100% - 28px); }
+  .nav { gap: 14px; }
+  .page-head { display: block; padding: 20px 0 13px; }
+  .archive-date { display: block; margin-top: 9px; }
+  .filters { gap: 9px; padding: 12px 0; }
+  .dash { grid-template-columns: 1fr; }
+  .chart-panel, .calc, .comparison, .sources { padding: 14px; }
+  .metric + .metric { padding-left: 8px; }
+  .metric .label, .metric small { line-height: 1.25; }
+  .metric small { font-size: 10px; }
+  .chart { height: 220px; }
+  .chart-actions { font-size: 11px; }
+  .chart-actions table { min-width: 265px; }
+  .comparison table { min-width: 465px; }
+}
+@media (max-width: 370px) {
+  .wrap { width: calc(100% - 22px); }
+  .metric strong { font-size: 16px; }
+  .chart-actions { column-gap: 6px; }
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#monitor">К мониторингу цен</a>
+<header class="top"><div class="wrap">
+<a class="brand" href="#top">АгроПульс</a>
+<nav class="nav" aria-label="Разделы"><a href="#calculator">Заправка</a><a href="#sources">Источники</a></nav>
+</div></header>
+<main class="wrap" id="top">
+<header class="page-head">
+<h1>Цены на топливо</h1>
+<div class="archive-date" id="archiveDate"></div>
+</header>
+<section id="monitor" aria-label="Мониторинг цен">
+<div class="filters">
+<label class="field"><span>Источник цен</span><select id="source"></select></label>
+<label class="field"><span>Основной регион</span><select id="region"></select></label>
+<label class="field"><span>Вид топлива</span><select id="fuel"></select></label>
+<label class="field"><span>Регион для сравнения</span><select id="compare"></select></label>
+<label class="field"><span>Период</span><select id="period"></select></label>
+<div id="customPeriod" class="custom-period" hidden><label class="field"><span>С недели</span><select id="startWeek"></select></label><label class="field"><span>По неделю</span><select id="endWeek"></select></label></div>
+</div>
+<div class="dash">
+<article class="panel chart-panel">
+<div class="heading"><div><h2>Динамика цен</h2><p class="sub" id="chartSub"></p></div><span class="unit">₽ / л</span></div>
+<div class="summary" id="metrics" aria-live="polite">
+<article class="metric"><div class="label">Цена на конец периода</div><strong id="endPrice"></strong><small id="endInfo"></small></article>
+<article class="metric"><div class="label">Изменение за период</div><strong id="change"></strong><small id="changeInfo"></small></article>
+<article class="metric"><div class="label">Разница между регионами</div><strong id="gap"></strong><small id="gapInfo"></small></article>
+</div>
+<div class="legend" id="legend"></div>
+<div class="chart-wrap"><svg class="chart" id="chart" role="group" aria-label="График цен по датам"></svg><div class="tip" id="tip" hidden aria-hidden="true"></div></div>
+<div class="chart-actions"><details><summary>Значения по датам</summary><div class="scroll" id="weekTable"></div></details><a id="latest" href="#sources">Таблица на конец периода</a></div>
+</article>
+<aside class="panel calc" id="calculator">
+<h2>Калькулятор заправки</h2>
+<p class="sub">По цене основного региона на конец периода</p>
+<label class="field"><span>Тип техники</span><select id="machine"><option value="180">Трактор · пример 180 л</option><option value="500">Комбайн · пример 500 л</option><option value="60">Мини-трактор · пример 60 л</option><option value="custom">Свой объём</option></select></label>
+<div class="calc-grid">
+<label class="field"><span>Объём на единицу</span><span class="unit-input"><input type="number" id="volume" min="0.01" max="1000000" step="any" inputmode="decimal" value="180" required><b aria-hidden="true">л</b></span></label>
+<label class="field"><span>Количество машин</span><span class="unit-input"><input type="number" id="quantity" min="1" max="10000" step="1" value="1" required><b aria-hidden="true">шт.</b></span></label>
+</div>
+<div class="result" aria-live="polite"><div class="result-label">Расчётная стоимость</div><output id="total" for="volume quantity region fuel period"></output><p class="sub" id="formula"></p></div>
+<p class="calc-note">Введите объём, который планируете залить в одну машину.</p>
+</aside>
+</div>
+<article class="panel comparison">
+<h2>Сравнение на конец периода</h2><p class="sub" id="comparisonSub"></p><div class="scroll" id="regionTable"></div>
+</article>
+</section>
+<section class="panel sources" id="sources">
+<h2>Источники и расчёты</h2>
+<p>Росстат публикует недельные цены по восьми регионам этой выборки и среднее по России. MultiGO даёт срез средних цен тех же восьми регионов на 17 ноября 2026 года. В таблице MultiGO АИ-98 указан отдельной маркой.</p>
+<p>Изменение цены считается от первой выбранной даты. Стоимость заправки равна объёму на одну машину, умноженному на количество машин и цену за литр на конец периода.</p>
+<h3>Таблицы, использованные в расчётах</h3>
+<p>Сохранённые цены в рублях за литр. Прочерк означает, что источник не опубликовал цену.</p>
+<div class="source-list" id="sourceList"></div>
+<div class="source-end"><a id="export" download="agropuls-ceny.csv">Скачать CSV</a></div>
+<h3>Публикации источников</h3>
+<div class="source-end">
+<a href="https://multigo.ru/benzin/statistika" target="_blank" rel="noopener">MultiGO — цены по регионам</a>
+<a href="https://rosstat.gov.ru/search?q=%D0%B1%D0%B5%D0%BD%D0%B7%D0%B8%D0%BD" target="_blank" rel="noopener">Росстат — поиск публикаций о бензине</a>
+</div>
+</section>
+</main>
+<script>
+const dataset = __DATA__;
+__APP__
+</script>
+</body>
+</html>
